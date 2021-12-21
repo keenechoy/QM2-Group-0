@@ -65,10 +65,12 @@ aahcrateregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcrateregress.csv')
 
 # Counting AAHC rate per capita of each state
 aahc2020['AAHC rate per capita in %'] = (aahc2020['AAHC number 2020']) / (aahc2020['Total']) * 100
-aahcratetotal = aahc2020.filter(['State', 'Total', 'AAHC number 2020', 'AAHC rate per capita in %'])
+aahcratetotal = aahc2020.filter(['State', 'Asian alone', 'Total', 'AAHC number 2020', 'AAHC rate per capita in %'])
 aahcratetotal.drop_duplicates(ignore_index=True, inplace=True)
 aahcratetotalregress = aahcratetotal.filter(['Total', 'AAHC rate per capita in %'])
 aahcratetotalregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcratetotalregress.csv')
+aahcrateasianregress = aahcratetotal.filter(['Asian alone', 'AAHC rate per capita in %'])
+aahcrateasianregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcrateasianregress.csv')
 
 # Regression for AAHC rate per asian capita and Asian population proportion
 filename = './Data/Stage 1/Output/aahcrateregress.csv'
@@ -105,6 +107,44 @@ plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
 plt.title('Proportion of Asian Population and AAHC rate per Asian capita by US States')
 plt.ylabel('Proportion of Asian Population')
+plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.savefig(outputname)
+
+# Regression for AAHC rate per asian capita and Asian population
+filename = './Data/Stage 1/Output/aahcrateasianregress.csv'
+outputname = './Data/Stage 1/Output/aahcrateasianregression.png'
+figure_width, figure_height = 10, 10
+aahcrateasianregress = np.genfromtxt(filename, delimiter=',')
+x_values = aahcrateasianregress[:, 2]
+y_values = aahcrateasianregress[:, 1]
+aahcrateasianregress[np.isnan(aahcrateasianregress)] = 0
+aahcrateasianregress[np.isinf(aahcrateasianregress)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and Asian population regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Asian Population and AAHC rate per Asian capita by US States')
+plt.ylabel('Asian Population')
 plt.xlabel('AAHC rate per Asian capita (in %)')
 plt.savefig(outputname)
 
@@ -371,6 +411,7 @@ folium.features.Choropleth(
     show=False
 ).add_to(stage2map.m2)
 
+# Adding interactive layer to the right side
 interactive2 = mapincome
 interactive2 = interactive2.merge(mapdropout, left_on='geometry', right_on='geometry', how='left')
 interactive2.drop(['GEOID_y', 'State_y'], axis=1, inplace=True)
@@ -395,8 +436,133 @@ interactivemap2 = folium.features.GeoJson(
 interactivemap2.add_to(stage2map.m2)
 stage2map.m1.keep_in_front(interactivemap)
 stage2map.m2.keep_in_front(interactivemap2)
+
+# Adding layer control to stage 2 map
 folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m1)
 folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m2)
 
+# Exporting stage 2 map
 stage2map.save('./Data/Stage 2/Output/stage2map.html')
 
+# Regression for Income and AAHC rate
+incomeregress = income.merge(aahcrate, left_on='State', right_on='State', how='inner')
+incomeregress.drop(['State', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
+incomeregress.to_csv(path_or_buf='./Data/Stage 2/Output/incomeregress.csv')
+filename = './Data/Stage 2/Output/incomeregress.csv'
+outputname = './Data/Stage 2/Output/incomeregression.png'
+figure_width, figure_height = 10, 10
+incomeregress = np.genfromtxt(filename, delimiter=',')
+x_values = incomeregress[1:, 2]
+y_values = incomeregress[1:, 1]
+incomeregress[np.isnan(incomeregress)] = 0
+incomeregress[np.isinf(incomeregress)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and income regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Median annual income (USD) and AAHC rate per Asian capita by US States')
+plt.ylabel('Median annual income (USD)')
+plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.savefig(outputname)
+
+# Regression for Dropout rate and AAHC rate
+dropoutregress = dropout.merge(aahcrate, left_on='State', right_on='State', how='inner')
+dropoutregress.drop(['State', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
+dropoutregress.to_csv(path_or_buf='./Data/Stage 2/Output/dropoutregress.csv')
+filename = './Data/Stage 2/Output/dropoutregress.csv'
+outputname = './Data/Stage 2/Output/dropoutregression.png'
+figure_width, figure_height = 10, 10
+dropoutregress = np.genfromtxt(filename, delimiter=',')
+x_values = dropoutregress[1:, 2]
+y_values = dropoutregress[1:, 1]
+dropoutregress[np.isnan(dropoutregress)] = 0
+dropoutregress[np.isinf(dropoutregress)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and dropout regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('High School Dropout Rates and AAHC rate per Asian capita by US States')
+plt.ylabel('High School Dropout Rates (in %)')
+plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.savefig(outputname)
+
+# Regression for popular vote and AAHC rate
+popularvoteregress = popularvote.merge(aahcrate, left_on='state', right_on='State', how='inner')
+popularvoteregress.drop(['state', 'called', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
+popularvoteregress.to_csv(path_or_buf='./Data/Stage 2/Output/popularvoteregress.csv')
+filename = './Data/Stage 2/Output/popularvoteregress.csv'
+outputname = './Data/Stage 2/Output/popularvoteregression.png'
+figure_width, figure_height = 10, 10
+popularvoteregress = np.genfromtxt(filename, delimiter=',')
+x_values = popularvoteregress[1:, 3]
+y_values = popularvoteregress[1:, 1]
+popularvoteregress[np.isnan(popularvoteregress)] = 0
+popularvoteregress[np.isinf(popularvoteregress)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and popular vote regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Democratic margin in 2020 Presidential Election and AAHC rate per Asian capita by US States')
+plt.ylabel('Democratic margin in 2020 Presidential Election')
+plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.savefig(outputname)
