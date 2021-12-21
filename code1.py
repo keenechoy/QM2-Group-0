@@ -1,9 +1,19 @@
+# Importing packages
 import pandas as pd
 import numpy as np
 import statsmodels.api as sms
+import shapely
+import fiona
+import pyproj
 import matplotlib.pyplot as plt
+import plotly.express as px
+import seaborn as sns
 import folium
+import folium.plugins
 import geopandas as gpd
+import branca.colormap as cm
+
+# STAGE1
 
 # Setting dataframes
 path1 = './Data/Stage 1/Input/us-state-pop-by-race.csv'
@@ -255,6 +265,7 @@ interactivemap = folium.features.GeoJson(
     style_function=style_function,
     control=False,
     overlay=True,
+    show=True,
     highlight_function=highlight_function,
     tooltip=folium.features.GeoJsonTooltip(
         fields=['State', 'Asian Population', 'Proportion of Asian Population', 'AAHC number 2020',
@@ -274,13 +285,118 @@ stage1map.save('./Data/Stage 1/Output/stage1map.html')
 # Saving Asian population dataframe as csv for cartogram
 asianpop.to_csv('./Data/Stage 1/Output/asianpop.csv')
 
-# Exporting key dataframes as csv for Stage 2
-aahc2020.to_csv('./Data/Stage 2/Input/aahc2020.csv')
-aahccases.to_csv('./Data/Stage 2/Input/aahccases.csv')
-aahcrate.to_csv('./Data/Stage 2/Input/aahcrate.csv')
-aahcratetotal.to_csv('./Data/Stage 2/Input/aahcratetotal.csv')
-asianpop.to_csv('./Data/Stage 2/Input/asianpop.csv')
-asianpopprop.to_csv('./Data/Stage 2/Input/asianpopprop.csv')
-crime_data.to_csv('./Data/Stage 2/Input/crime_data.csv')
-interactive.to_csv('./Data/Stage 2/Input/interactive.csv')
-statecount.to_csv('./Data/Stage 2/Input/statecount.csv')
+#STAGE2
+
+# Setting dataframes from imported data
+path = './Data/Stage 2/Input/Popular vote backend - Sheet1.csv'
+popularvote = pd.read_csv(path, low_memory=False)
+
+path = './Data/Stage 2/Input/School Dropout data.csv'
+dropout = pd.read_csv(path, low_memory=False)
+
+path = './Data/Stage 2/Input/US states- income QM database.xlsx - Sheet1.csv'
+income = pd.read_csv(path, low_memory=False)
+
+# Cleaning dataframes
+dropout = dropout.filter(['State', 'Total'])
+popularvote = popularvote.filter(['state', 'called', 'dem_this_margin'])
+popularvote['dem_this_margin'] = popularvote['dem_this_margin'].str.rstrip('%').astype('float')
+
+# Creating side-by-side choropleth maps showing datasets
+map = gpd.read_file('./Data/Stage 1/Input/cb_2018_us_state_500k/cb_2018_us_state_500k.shp')
+map = map[['GEOID', 'NAME', 'geometry']]
+map.rename(columns={'NAME': 'State'}, inplace=True)
+x_map = map.centroid.x.mean()
+y_map = map.centroid.y.mean()
+stage2map = folium.plugins.DualMap(zoom_start=4, tiles=False, layout='vertical')
+folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(stage2map.m1)
+folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(stage2map.m2)
+
+# Copying the Stage 1 maps to the left side
+asianpopmap.add_to(stage2map.m1)
+asianpoppropmap.add_to(stage2map.m1)
+aahccasesmap.add_to(stage2map.m1)
+aahcratemap.add_to(stage2map.m1)
+interactivemap.add_to(stage2map.m1)
+
+# Adding Stage 2 maps to the right side
+mappopularvote = map.merge(popularvote, left_on='State', right_on='state', how='inner')
+folium.features.Choropleth(
+    geo_data=mappopularvote,
+    name='Democratic margin in 2020 Presidential Election',
+    data=mappopularvote,
+    columns=['State', 'dem_this_margin'],
+    key_on="feature.properties.State",
+    fill_color='RdBu',
+    bins=(-50, -25, -15, -10, -5, 0, 5, 10, 15, 25, 90),
+    fill_opacity=0.7,
+    line_opacity=0.2,
+    legend_name='Democratic margin in 2020 Presidential Election',
+    smooth_factor=0,
+    overlay=True,
+    show=True
+).add_to(stage2map.m2)
+
+mapincome = map.merge(income, left_on='State', right_on='State', how='inner')
+folium.features.Choropleth(
+    geo_data=mapincome,
+    name='Median Annual Income (USD)',
+    data=mapincome,
+    columns=['State', 'Median annual income (USD)'],
+    key_on="feature.properties.State",
+    fill_color='YlGnBu',
+    bins=(24000, 29000, 34000, 39000, 44000, 57000),
+    fill_opacity=0.7,
+    line_opacity=0.2,
+    legend_name='Median Annual Income (USD)',
+    smooth_factor=0,
+    overlay=True,
+    show=False
+).add_to(stage2map.m2)
+
+mapdropout = map.merge(dropout, left_on='State', right_on='State', how='right')
+folium.features.Choropleth(
+    geo_data=mapdropout,
+    name='High School Dropout Rates (%)',
+    data=mapdropout,
+    columns=['State', 'Total'],
+    key_on="feature.properties.State",
+    fill_color='YlGnBu',
+    bins=(3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 9.0),
+    fill_opacity=0.7,
+    line_opacity=0.2,
+    legend_name='High School Dropout Rates (%)',
+    smooth_factor=0,
+    overlay=True,
+    show=False
+).add_to(stage2map.m2)
+
+interactive2 = mapincome
+interactive2 = interactive2.merge(mapdropout, left_on='geometry', right_on='geometry', how='left')
+interactive2.drop(['GEOID_y', 'State_y'], axis=1, inplace=True)
+interactive2 = interactive2.merge(mappopularvote, left_on='geometry', right_on='geometry', how='left')
+interactive2.drop(['GEOID', 'State'], axis=1, inplace=True)
+interactive2.rename(columns={'GEOID_x': 'GEOID', 'State_x': 'State'}, inplace=True)
+
+interactivemap2 = folium.features.GeoJson(
+    interactive2,
+    style_function=style_function,
+    control=False,
+    overlay=True,
+    show=True,
+    highlight_function=highlight_function,
+    tooltip=folium.features.GeoJsonTooltip(
+        fields=['State', 'dem_this_margin', 'Median annual income (USD)', 'Total'],
+        aliases=['State: ', 'Democratic margin in 2020 Presidential Election: ', 'Median Annual Income (USD): ',
+                 'High School Dropout Rates (%): '],
+        style="background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 10px;",
+
+    ))
+interactivemap2.add_to(stage2map.m2)
+stage2map.m1.keep_in_front(interactivemap)
+stage2map.m2.keep_in_front(interactivemap2)
+folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m1)
+folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m2)
+
+stage2map.save('./Data/Stage 2/Output/stage2map.html')
+
