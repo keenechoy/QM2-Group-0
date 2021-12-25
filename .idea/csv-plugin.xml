@@ -3,6 +3,13 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/Data/Stage 1/Input/us-state-pop-by-race.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/Data/Stage 1/Output/aahcrate.csv">
           <value>
             <Attribute>
@@ -11,6 +18,13 @@
           </value>
         </entry>
         <entry key="/Data/Stage 1/Output/aahcrateregress.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/Data/Stage 1/Output/asianpop.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -46,6 +60,13 @@
           </value>
         </entry>
         <entry key="/Data/Stage 2/Input/mapaahcrate.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/Data/Stage 2/Output/dropoutregress.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

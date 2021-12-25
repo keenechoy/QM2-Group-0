@@ -28,25 +28,20 @@ aahc2020 = aahc2020[aahc2020['BIAS_DESC'] == 'Anti-Asian']
 aahc2020.reset_index(drop=True, inplace=True)
 
 # Assigning 'State' attribute for 'Federal' cases by referring to the ORI
-aahc2020.at[106, 'STATE_NAME'] = 'California'
-aahc2020.at[107, 'STATE_NAME'] = 'California'
-aahc2020.at[108, 'STATE_NAME'] = 'California'
-aahc2020.at[109, 'STATE_NAME'] = 'California'
+aahc2020.at[106:109, 'STATE_NAME'] = 'California'
 aahc2020.at[110, 'STATE_NAME'] = 'Colorado'
-aahc2020.at[111, 'STATE_NAME'] = 'Connecticut'
-aahc2020.at[112, 'STATE_NAME'] = 'Connecticut'
-aahc2020.at[113, 'STATE_NAME'] = 'Montana'
-aahc2020.at[114, 'STATE_NAME'] = 'Montana'
+aahc2020.at[111:112, 'STATE_NAME'] = 'Connecticut'
+aahc2020.at[113:114, 'STATE_NAME'] = 'Montana'
 aahc2020.at[115, 'STATE_NAME'] = 'New Mexico'
 aahc2020.at[116, 'STATE_NAME'] = 'Texas'
 aahc2020.at[117, 'STATE_NAME'] = 'Washington'
 
-# Merging with state dataset
+# Merging crime dataset with state population dataset
 aahc2020.rename(columns={'STATE_NAME': 'State'}, inplace=True)
 race_demo.rename(columns={'Label': 'State'}, inplace=True)
 aahc2020 = aahc2020.merge(race_demo, left_on='State', right_on='State', how='left')
 
-# Removing collumns we don't need and cleaning data types
+# Removing columns we don't need and cleaning data types
 aahc2020.drop(['PUB_AGENCY_UNIT', 'Anti-Asian Hate Crime 2020', 'Native Hawaiian and Other Pacific Islander alone',
                'Asian and NHOPI', 'Proportion of NHOPI', 'Proportion of Asian and NHOPI'], axis=1, inplace=True)
 
@@ -55,70 +50,40 @@ statecount = aahc2020.value_counts(subset='State').to_frame()
 statecount.rename(columns={0: 'AAHC number 2020'}, inplace=True)
 aahc2020 = aahc2020.merge(statecount, left_on='State', right_index=True, how='left')
 
-# Counting AAHC rate per Asian capita of each state
+# Creating dataframe for Stage 1 key data
 aahc2020['AAHC rate per Asian capita in %'] = (aahc2020['AAHC number 2020']) / (aahc2020['Asian alone']) * 100
-aahcrate = aahc2020.filter(
-    ['State', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020', 'AAHC rate per Asian capita in %'])
-aahcrate.drop_duplicates(ignore_index=True, inplace=True)
-aahcrateregress = aahcrate.filter(['Proportion of Asian Population', 'AAHC rate per Asian capita in %'])
-aahcrateregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcrateregress.csv')
+stage1keydata = race_demo.filter(['State', 'Total', 'Asian alone', 'Proportion of Asian Population'])
+stage1keydata.rename(columns={'Asian alone': 'Asian Population'}, inplace=True)
+stage1keydata.drop_duplicates(ignore_index=True, inplace=True)
+aahc2020_1 = aahc2020.filter(['State', 'AAHC number 2020', 'AAHC rate per Asian capita in %'])
+aahc2020_1.drop_duplicates(ignore_index=True, inplace=True)
+stage1keydata = stage1keydata.merge(aahc2020_1, left_on='State', right_on='State', how='left')
 
 # Counting AAHC rate per capita of each state
 aahc2020['AAHC rate per capita in %'] = (aahc2020['AAHC number 2020']) / (aahc2020['Total']) * 100
-aahcratetotal = aahc2020.filter(['State', 'Asian alone', 'Total', 'AAHC number 2020', 'AAHC rate per capita in %'])
-aahcratetotal.drop_duplicates(ignore_index=True, inplace=True)
-aahcratetotalregress = aahcratetotal.filter(['Total', 'AAHC rate per capita in %'])
-aahcratetotalregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcratetotalregress.csv')
-aahcrateasianregress = aahcratetotal.filter(['Asian alone', 'AAHC rate per capita in %'])
-aahcrateasianregress.to_csv(path_or_buf='./Data/Stage 1/Output/aahcrateasianregress.csv')
 
-# Regression for AAHC rate per asian capita and Asian population proportion
-filename = './Data/Stage 1/Output/aahcrateregress.csv'
-outputname = './Data/Stage 1/Output/aahcrateregression.png'
-figure_width, figure_height = 10, 10
-aahcratedata = np.genfromtxt(filename, delimiter=',')
-x_values = aahcratedata[:, 2]
-y_values = aahcratedata[:, 1]
-aahcratedata[np.isnan(aahcratedata)] = 0
-aahcratedata[np.isinf(aahcratedata)] = 0
+# Creating dataframes for regression and standardising data
+stage1keydata_reg = aahc2020.filter(
+    ['State', 'Total', 'Asian alone', 'Proportion of Asian Population', 'AAHC rate per Asian capita in %', 'AAHC number 2020'])
+stage1keydata_reg.drop_duplicates(ignore_index=True, inplace=True)
+stage1keydata_reg.rename(columns={'Asian alone': 'Asian Population'}, inplace=True)
 
-X_values = sms.add_constant(x_values)
-regression_model_a = sms.OLS(y_values, X_values)
-regression_model_b = regression_model_a.fit()
-print()
-print('AAHC rate and Asian population proportion regression summary')
-print(regression_model_b.summary())
-print()
-
-gradient = regression_model_b.params[1]
-intercept = regression_model_b.params[0]
-Rsquared = regression_model_b.rsquared
-MSE = regression_model_b.mse_resid
-pvalue = regression_model_b.f_pvalue
-print("gradient  =", regression_model_b.params[1])
-print("intercept =", regression_model_b.params[0])
-print("Rsquared  =", regression_model_b.rsquared)
-print("MSE       =", regression_model_b.mse_resid)
-print("pvalue    =", regression_model_b.f_pvalue)
-
-x_lobf = [min(x_values), max(x_values)]
-y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
-plt.figure(figsize=(figure_width, figure_height))
-plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Proportion of Asian Population and AAHC rate per Asian capita by US States')
-plt.ylabel('Proportion of Asian Population')
-plt.xlabel('AAHC rate per Asian capita (in %)')
-plt.savefig(outputname)
+regression1 = pd.DataFrame()
+regression1['Asian Population (Standardised)'] = (stage1keydata_reg['Asian Population'] - stage1keydata_reg['Asian Population'].min()) / (stage1keydata_reg['Asian Population'].max() - stage1keydata_reg['Asian Population'].min())
+regression1['Proportion of Asian Population (Standardised)'] = (stage1keydata_reg['Proportion of Asian Population'] - stage1keydata_reg['Proportion of Asian Population'].min()) / (stage1keydata_reg['Proportion of Asian Population'].max() - stage1keydata_reg['Proportion of Asian Population'].min())
+regression1['Total (Standardised)'] = (stage1keydata_reg['Total'] - stage1keydata_reg['Total'].min()) / (stage1keydata_reg['Total'].max() - stage1keydata_reg['Total'].min())
+regression1['AAHC rate per Asian capita in % (Standardised)'] = (stage1keydata_reg['AAHC rate per Asian capita in %'] - stage1keydata_reg['AAHC rate per Asian capita in %'].min()) / (stage1keydata_reg['AAHC rate per Asian capita in %'].max() - stage1keydata_reg['AAHC rate per Asian capita in %'].min())
+regression1.to_csv(path_or_buf='./Data/Stage 1/Output/regression1.csv')
 
 # Regression for AAHC rate per asian capita and Asian population
-filename = './Data/Stage 1/Output/aahcrateasianregress.csv'
+inputname = './Data/Stage 1/Output/regression1.csv'
 outputname = './Data/Stage 1/Output/aahcrateasianregression.png'
 figure_width, figure_height = 10, 10
-aahcrateasianregress = np.genfromtxt(filename, delimiter=',')
-x_values = aahcrateasianregress[:, 2]
-y_values = aahcrateasianregress[:, 1]
-aahcrateasianregress[np.isnan(aahcrateasianregress)] = 0
-aahcrateasianregress[np.isinf(aahcrateasianregress)] = 0
+regressiondata = np.genfromtxt(inputname, delimiter=',')
+x_values = regressiondata[1:,4]
+y_values = regressiondata[1:,1]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
 
 X_values = sms.add_constant(x_values)
 regression_model_a = sms.OLS(y_values, X_values)
@@ -144,19 +109,57 @@ y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
 plt.title('Asian Population and AAHC rate per Asian capita by US States')
-plt.ylabel('Asian Population')
-plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.ylabel('Asian Population (Standardised)')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
+plt.savefig(outputname)
+
+# Regression for AAHC rate per asian capita and Asian population proportion
+inputname = './Data/Stage 1/Output/regression1.csv'
+outputname = './Data/Stage 1/Output/aahcrateproportionregression.png'
+figure_width, figure_height = 10, 10
+regressiondata = np.genfromtxt(inputname, delimiter=',')
+x_values = regressiondata[1:,4]
+y_values = regressiondata[1:,2]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and Asian population proportion regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Proportion of Asian Population and AAHC rate per Asian capita by US States')
+plt.ylabel('Proportion of Asian Population (Standardised')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for AAHC rate per asian capita and Total state population
-filename = './Data/Stage 1/Output/aahcratetotalregress.csv'
+inputname = './Data/Stage 1/Output/regression1.csv'
 outputname = './Data/Stage 1/Output/aahcratetotalregression.png'
 figure_width, figure_height = 10, 10
-aahcratedata = np.genfromtxt(filename, delimiter=',')
-x_values = aahcratedata[:, 2]
-y_values = aahcratedata[:, 1]
-aahcratedata[np.isnan(aahcratedata)] = 0
-aahcratedata[np.isinf(aahcratedata)] = 0
+regressiondata = np.genfromtxt(inputname, delimiter=',')
+x_values = regressiondata[1:,4]
+y_values = regressiondata[1:,3]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
 
 X_values = sms.add_constant(x_values)
 regression_model_a = sms.OLS(y_values, X_values)
@@ -182,19 +185,18 @@ y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
 plt.title('Total population and AAHC rate per Asian capita by US States')
-plt.ylabel('Total population')
-plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.ylabel('Total population (Standardised')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Produce Stage 1 results choropleth map
 map = gpd.read_file('./Data/Stage 1/Input/cb_2018_us_state_500k/cb_2018_us_state_500k.shp')
 map = map[['GEOID', 'NAME', 'geometry']]
 map.rename(columns={'NAME': 'State'}, inplace=True)
+map.drop([13,37,38,44,45], axis=0, inplace=True)
 
 # Produce Asian Population layer on Stage 1 choropleth map
-asianpop = race_demo.filter(['State', 'Asian alone'])
-asianpop.rename(columns={'Asian alone': 'Asian Population'}, inplace=True)
-mapasianpop = map.merge(asianpop, left_on='State', right_on='State', how='inner')
+mapstage1keydata = map.merge(stage1keydata, left_on='State', right_on='State', how='left')
 
 x_map = map.centroid.x.mean()
 y_map = map.centroid.y.mean()
@@ -202,12 +204,12 @@ stage1map = folium.Map(location=[y_map, x_map], zoom_start=4, tiles=None)
 folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(stage1map)
 
 asianpopmap = folium.features.Choropleth(
-    geo_data=mapasianpop,
+    geo_data=mapstage1keydata,
     name='Asian Population',
-    data=mapasianpop,
+    data=mapstage1keydata,
     columns=['State', 'Asian Population'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Blues',
     bins=(0, 50000, 100000, 250000, 500000, 1000000, 6100000),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -219,16 +221,14 @@ asianpopmap = folium.features.Choropleth(
 stage1map.add_child(asianpopmap)
 
 # Produce Asian Population Proportion layer on Stage 1 choropleth map
-asianpopprop = race_demo.filter(['State', 'Proportion of Asian Population'])
-mapasianpopprop = map.merge(asianpopprop, left_on='State', right_on='State', how='inner')
 
 asianpoppropmap = folium.features.Choropleth(
-    geo_data=mapasianpopprop,
+    geo_data=mapstage1keydata,
     name='Proportion of Asian Population',
-    data=mapasianpopprop,
+    data=mapstage1keydata,
     columns=['State', 'Proportion of Asian Population'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Greens',
     bins=(0, 0.015, 0.03, 0.045, 0.06, 0.09, 0.38),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -240,17 +240,13 @@ asianpoppropmap = folium.features.Choropleth(
 stage1map.add_child(asianpoppropmap)
 
 # Produce AAHC Cases layer on Stage 1 choropleth map
-aahccases = aahc2020.filter(['State', 'AAHC number 2020'])
-aahccases.drop_duplicates(ignore_index=True, inplace=True)
-mapaahccases = map.merge(aahccases, left_on='State', right_on='State', how='inner')
-
 aahccasesmap = folium.features.Choropleth(
-    geo_data=mapaahccases,
+    geo_data=mapstage1keydata,
     name='Number of AAHC cases in 2020',
-    data=mapaahccases,
+    data=mapstage1keydata,
     columns=['State', 'AAHC number 2020'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Reds',
     bins=(0, 2, 5, 10, 20, 100),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -262,16 +258,13 @@ aahccasesmap = folium.features.Choropleth(
 stage1map.add_child(aahccasesmap)
 
 # Produce AAHC Rates layer on Stage 1 choropleth map
-mapaahcrate = map.merge(aahcrate, left_on='State', right_on='State', how='inner')
-mapaahcrate.drop(['Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
-
 aahcratemap = folium.features.Choropleth(
-    geo_data=mapaahcrate,
+    geo_data=mapstage1keydata,
     name='AAHC rate per Asian capita in %',
-    data=mapaahcrate,
+    data=mapstage1keydata,
     columns=['State', 'AAHC rate per Asian capita in %'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Purples',
     bins=(0, 0.001, 0.002, 0.003, 0.005, 0.01, 0.025),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -283,15 +276,7 @@ aahcratemap = folium.features.Choropleth(
 stage1map.add_child(aahcratemap)
 
 # Adding interactive layer on Stage 1 choropleth map
-interactive = mapasianpop
-interactive['Proportion of Asian Population'] = mapasianpopprop['Proportion of Asian Population']
-interactive = interactive.merge(mapaahccases, left_on='geometry', right_on='geometry', how='left')
-interactive.drop(['GEOID_y', 'State_y'], axis=1, inplace=True)
-interactive = interactive.merge(mapaahcrate, left_on='geometry', right_on='geometry', how='left')
-interactive.drop(['GEOID', 'State'], axis=1, inplace=True)
-interactive.rename(columns={'GEOID_x': 'GEOID', 'State_x': 'State'}, inplace=True)
-interactive = interactive.replace(np.NaN, 'No record')
-
+mapstage1keydata = mapstage1keydata.replace(np.NaN, 'No record')
 style_function = lambda x: {'fillColor': '#ffffff',
                             'color': '#000000',
                             'fillOpacity': 0.1,
@@ -301,7 +286,7 @@ highlight_function = lambda x: {'fillColor': '#000000',
                                 'fillOpacity': 0.50,
                                 'weight': 0.1}
 interactivemap = folium.features.GeoJson(
-    interactive,
+    mapstage1keydata,
     style_function=style_function,
     control=False,
     overlay=True,
@@ -322,8 +307,8 @@ folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage1map)
 # Save the Stage 1 Choropleth map as html file
 stage1map.save('./Data/Stage 1/Output/stage1map.html')
 
-# Saving Asian population dataframe as csv for cartogram
-asianpop.to_csv('./Data/Stage 1/Output/asianpop.csv')
+# Saving Stage 1 key data dataframe as csv
+stage1keydata.to_csv('./Data/Stage 1/Output/stage1keydata.csv')
 
 #STAGE2
 
@@ -342,10 +327,12 @@ dropout = dropout.filter(['State', 'Total'])
 popularvote = popularvote.filter(['state', 'called', 'dem_this_margin'])
 popularvote['dem_this_margin'] = popularvote['dem_this_margin'].str.rstrip('%').astype('float')
 
+#Creating Stage 2 key data dataframe
+stage2keydata = dropout.merge(popularvote, left_on='State', right_on='state', how='inner')
+stage2keydata = stage2keydata.merge(income, left_on='State', right_on='State', how='inner')
+stage2keydata.drop(['called'], axis=1, inplace=True)
+
 # Creating side-by-side choropleth maps showing datasets
-map = gpd.read_file('./Data/Stage 1/Input/cb_2018_us_state_500k/cb_2018_us_state_500k.shp')
-map = map[['GEOID', 'NAME', 'geometry']]
-map.rename(columns={'NAME': 'State'}, inplace=True)
 x_map = map.centroid.x.mean()
 y_map = map.centroid.y.mean()
 stage2map = folium.plugins.DualMap(zoom_start=4, tiles=False, layout='vertical')
@@ -360,11 +347,11 @@ aahcratemap.add_to(stage2map.m1)
 interactivemap.add_to(stage2map.m1)
 
 # Adding Stage 2 maps to the right side
-mappopularvote = map.merge(popularvote, left_on='State', right_on='state', how='inner')
+mapstage2keydata = map.merge(stage2keydata, left_on='State', right_on='State', how='inner')
 folium.features.Choropleth(
-    geo_data=mappopularvote,
+    geo_data=mapstage2keydata,
     name='Democratic margin in 2020 Presidential Election',
-    data=mappopularvote,
+    data=mapstage2keydata,
     columns=['State', 'dem_this_margin'],
     key_on="feature.properties.State",
     fill_color='RdBu',
@@ -377,14 +364,13 @@ folium.features.Choropleth(
     show=True
 ).add_to(stage2map.m2)
 
-mapincome = map.merge(income, left_on='State', right_on='State', how='inner')
 folium.features.Choropleth(
-    geo_data=mapincome,
+    geo_data=mapstage2keydata,
     name='Median Annual Income (USD)',
-    data=mapincome,
+    data=mapstage2keydata,
     columns=['State', 'Median annual income (USD)'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Greens',
     bins=(24000, 29000, 34000, 39000, 44000, 57000),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -394,14 +380,13 @@ folium.features.Choropleth(
     show=False
 ).add_to(stage2map.m2)
 
-mapdropout = map.merge(dropout, left_on='State', right_on='State', how='right')
 folium.features.Choropleth(
-    geo_data=mapdropout,
+    geo_data=mapstage2keydata,
     name='High School Dropout Rates (%)',
-    data=mapdropout,
+    data=mapstage2keydata,
     columns=['State', 'Total'],
     key_on="feature.properties.State",
-    fill_color='YlGnBu',
+    fill_color='Purples',
     bins=(3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 9.0),
     fill_opacity=0.7,
     line_opacity=0.2,
@@ -412,15 +397,8 @@ folium.features.Choropleth(
 ).add_to(stage2map.m2)
 
 # Adding interactive layer to the right side
-interactive2 = mapincome
-interactive2 = interactive2.merge(mapdropout, left_on='geometry', right_on='geometry', how='left')
-interactive2.drop(['GEOID_y', 'State_y'], axis=1, inplace=True)
-interactive2 = interactive2.merge(mappopularvote, left_on='geometry', right_on='geometry', how='left')
-interactive2.drop(['GEOID', 'State'], axis=1, inplace=True)
-interactive2.rename(columns={'GEOID_x': 'GEOID', 'State_x': 'State'}, inplace=True)
-
 interactivemap2 = folium.features.GeoJson(
-    interactive2,
+    mapstage2keydata,
     style_function=style_function,
     control=False,
     overlay=True,
@@ -445,17 +423,23 @@ folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m2)
 stage2map.save('./Data/Stage 2/Output/stage2map.html')
 
 # Regression for Income and AAHC rate
-incomeregress = income.merge(aahcrate, left_on='State', right_on='State', how='inner')
-incomeregress.drop(['State', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
-incomeregress.to_csv(path_or_buf='./Data/Stage 2/Output/incomeregress.csv')
-filename = './Data/Stage 2/Output/incomeregress.csv'
+stage2keydata_reg = stage1keydata_reg.filter(['State', 'AAHC rate per Asian capita in %'])
+stage2keydata_reg = stage2keydata_reg.merge(stage2keydata, left_on='State', right_on='State', how='inner')
+regression2 =  pd.DataFrame()
+regression2['Median annual income (Standardised)'] = (stage2keydata_reg['Median annual income (USD)'] - stage2keydata_reg['Median annual income (USD)'].mean())/(stage2keydata_reg['Median annual income (USD)'].std())
+regression2['dem_this_margin (Standardised)'] = (stage2keydata_reg['dem_this_margin'] - stage2keydata_reg['dem_this_margin'].mean())/(stage2keydata_reg['dem_this_margin'].std())
+regression2['Dropout rates (Standardised)'] = (stage2keydata_reg['Total'] - stage2keydata_reg['Total'].mean())/(stage2keydata_reg['Total'].std())
+regression2['AAHC rate per Asian capita in % (Standardised)'] = (stage1keydata_reg['AAHC rate per Asian capita in %'] - stage1keydata_reg['AAHC rate per Asian capita in %'].mean())/(stage1keydata_reg['AAHC rate per Asian capita in %'].std())
+regression2.to_csv(path_or_buf='./Data/Stage 2/Output/regression2.csv')
+
+filename = './Data/Stage 2/Output/regression2.csv'
 outputname = './Data/Stage 2/Output/incomeregression.png'
 figure_width, figure_height = 10, 10
-incomeregress = np.genfromtxt(filename, delimiter=',')
-x_values = incomeregress[1:, 2]
-y_values = incomeregress[1:, 1]
-incomeregress[np.isnan(incomeregress)] = 0
-incomeregress[np.isinf(incomeregress)] = 0
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 4]
+y_values = regressiondata[1:, 1]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
 
 X_values = sms.add_constant(x_values)
 regression_model_a = sms.OLS(y_values, X_values)
@@ -480,23 +464,20 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Median annual income (USD) and AAHC rate per Asian capita by US States')
-plt.ylabel('Median annual income (USD)')
-plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.title('Median annual income and AAHC rate per Asian capita by US States')
+plt.ylabel('Median annual income (Standardised)')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for Dropout rate and AAHC rate
-dropoutregress = dropout.merge(aahcrate, left_on='State', right_on='State', how='inner')
-dropoutregress.drop(['State', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
-dropoutregress.to_csv(path_or_buf='./Data/Stage 2/Output/dropoutregress.csv')
-filename = './Data/Stage 2/Output/dropoutregress.csv'
+filename = './Data/Stage 2/Output/regression2.csv'
 outputname = './Data/Stage 2/Output/dropoutregression.png'
 figure_width, figure_height = 10, 10
-dropoutregress = np.genfromtxt(filename, delimiter=',')
-x_values = dropoutregress[1:, 2]
-y_values = dropoutregress[1:, 1]
-dropoutregress[np.isnan(dropoutregress)] = 0
-dropoutregress[np.isinf(dropoutregress)] = 0
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 4]
+y_values = regressiondata[1:, 3]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
 
 X_values = sms.add_constant(x_values)
 regression_model_a = sms.OLS(y_values, X_values)
@@ -522,22 +503,19 @@ y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
 plt.title('High School Dropout Rates and AAHC rate per Asian capita by US States')
-plt.ylabel('High School Dropout Rates (in %)')
-plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.ylabel('High School Dropout Rates (Standardised)')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for popular vote and AAHC rate
-popularvoteregress = popularvote.merge(aahcrate, left_on='state', right_on='State', how='inner')
-popularvoteregress.drop(['state', 'called', 'Asian alone', 'Proportion of Asian Population', 'AAHC number 2020'], axis=1, inplace=True)
-popularvoteregress.to_csv(path_or_buf='./Data/Stage 2/Output/popularvoteregress.csv')
-filename = './Data/Stage 2/Output/popularvoteregress.csv'
+filename = './Data/Stage 2/Output/regression2.csv'
 outputname = './Data/Stage 2/Output/popularvoteregression.png'
 figure_width, figure_height = 10, 10
-popularvoteregress = np.genfromtxt(filename, delimiter=',')
-x_values = popularvoteregress[1:, 3]
-y_values = popularvoteregress[1:, 1]
-popularvoteregress[np.isnan(popularvoteregress)] = 0
-popularvoteregress[np.isinf(popularvoteregress)] = 0
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 4]
+y_values = regressiondata[1:, 2]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
 
 X_values = sms.add_constant(x_values)
 regression_model_a = sms.OLS(y_values, X_values)
@@ -563,6 +541,9 @@ y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
 plt.title('Democratic margin in 2020 Presidential Election and AAHC rate per Asian capita by US States')
-plt.ylabel('Democratic margin in 2020 Presidential Election')
-plt.xlabel('AAHC rate per Asian capita (in %)')
+plt.ylabel('Democratic margin in 2020 Presidential Election (Standardised)')
+plt.xlabel('AAHC rate per Asian capita (Standardised)')
 plt.savefig(outputname)
+
+# Saving Stage 2 key data dataframe as csv
+stage2keydata.to_csv('./Data/Stage 2/Output/stage2keydata.csv')
