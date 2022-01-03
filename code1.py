@@ -1,3 +1,4 @@
+
 # Importing packages
 import pandas as pd
 import numpy as np
@@ -14,7 +15,7 @@ import folium.plugins
 import geopandas as gpd
 import branca.colormap as cm
 
-# STAGE1
+# STAGE 1
 
 # Setting dataframes
 path1 = './Data/Stage 1/Input/us-state-pop-by-race.csv'
@@ -43,8 +44,7 @@ race_demo.rename(columns={'Label': 'State'}, inplace=True)
 aahc2020 = aahc2020.merge(race_demo, left_on='State', right_on='State', how='left')
 
 # Removing columns we don't need and cleaning data types
-aahc2020.drop(['PUB_AGENCY_UNIT', 'Anti-Asian Hate Crime 2020', 'Native Hawaiian and Other Pacific Islander alone',
-               'Asian and NHOPI', 'Proportion of NHOPI', 'Proportion of Asian and NHOPI'], axis=1, inplace=True)
+aahc2020.drop(['PUB_AGENCY_UNIT', 'Anti-Asian Hate Crime 2020', 'Native Hawaiian and Other Pacific Islander alone', 'Asian and NHOPI', 'Proportion of NHOPI', 'Proportion of Asian and NHOPI'], axis=1, inplace=True)
 
 # Counting number of AAHC by state
 statecount = aahc2020.value_counts(subset='State').to_frame()
@@ -109,9 +109,9 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Asian Population and AAHC rate per Asian capita by US States')
+plt.title('Asian Population and AAHC cases per Asian capita by US States')
 plt.xlabel('Asian Population (Standardised)')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for AAHC rate per asian capita and Asian population proportion
@@ -147,9 +147,9 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Proportion of Asian Population and AAHC rate per Asian capita by US States')
+plt.title('Proportion of Asian Population and AAHC cases per Asian capita by US States')
 plt.xlabel('Proportion of Asian Population (Standardised')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for AAHC rate per asian capita and Total state population
@@ -185,9 +185,9 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Total population and AAHC rate per Asian capita by US States')
+plt.title('Total population and AAHC cases per Asian capita by US States')
 plt.xlabel('Total population (Standardised')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Produce Stage 1 results choropleth map
@@ -195,15 +195,14 @@ map = gpd.read_file('./Data/Stage 1/Input/cb_2018_us_state_500k/cb_2018_us_state
 map = map[['GEOID', 'NAME', 'geometry']]
 map.rename(columns={'NAME': 'State'}, inplace=True)
 map.drop([13,37,38,44,45], axis=0, inplace=True)
-
-# Produce Asian Population layer on Stage 1 choropleth map
-mapstage1keydata = map.merge(stage1keydata, left_on='State', right_on='State', how='left')
-
 x_map = map.centroid.x.mean()
 y_map = map.centroid.y.mean()
 stage1map = folium.Map(location=[y_map, x_map], zoom_start=4, tiles=None)
 folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(stage1map)
 
+mapstage1keydata = map.merge(stage1keydata, left_on='State', right_on='State', how='left')
+
+# Produce Asian Population layer on Stage 1 choropleth map
 asianpopmap = folium.features.Choropleth(
     geo_data=mapstage1keydata,
     name='Asian Population',
@@ -229,7 +228,7 @@ asianpoppropmap = folium.features.Choropleth(
     columns=['State', 'Proportion of Asian Population'],
     key_on="feature.properties.State",
     fill_color='Blues',
-    bins=(0, 0.015, 0.03, 0.045, 0.06, 0.09, 0.38),
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage1keydata['Proportion of Asian Population'], nb_class=7)),
     fill_opacity=0.8,
     line_opacity=0.2,
     legend_name='Proportion of Asian Population',
@@ -247,8 +246,8 @@ aahccasesmap = folium.features.Choropleth(
     columns=['State', 'AAHC number 2020'],
     key_on="feature.properties.State",
     fill_color='Blues',
-    bins=(0, 2, 5, 10, 20, 100),
-    fill_opacity=0.7,
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage1keydata['AAHC number 2020'], nb_class=6)),
+    fill_opacity=0.8,
     line_opacity=0.2,
     legend_name='Number of AAHC cases in 2020',
     smooth_factor=0,
@@ -260,15 +259,15 @@ stage1map.add_child(aahccasesmap)
 # Produce AAHC Rates layer on Stage 1 choropleth map
 aahcratemap = folium.features.Choropleth(
     geo_data=mapstage1keydata,
-    name='AAHC rate per Asian capita in %',
+    name='AAHC cases per Asian capita in %',
     data=mapstage1keydata,
     columns=['State', 'AAHC rate per Asian capita in %'],
     key_on="feature.properties.State",
     fill_color='Blues',
-    bins=(0, 0.001, 0.002, 0.003, 0.005, 0.01, 0.025),
-    fill_opacity=0.7,
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage1keydata['AAHC rate per Asian capita in %'], nb_class=7)),
+    fill_opacity=0.8,
     line_opacity=0.2,
-    legend_name='AAHC rate per Asian capita in %',
+    legend_name='AAHC cases per Asian capita in %',
     smooth_factor=0,
     overlay=True,
     show=False
@@ -296,7 +295,7 @@ interactivemap = folium.features.GeoJson(
         fields=['State', 'Asian Population', 'Proportion of Asian Population', 'AAHC number 2020',
                 'AAHC rate per Asian capita in %'],
         aliases=['State: ', 'Asian population: ', 'Proportion of Asian population: ', 'Number of AAHC cases in 2020: ',
-                 'AAHC rate per Asian capita in %: '],
+                 'AAHC cases per Asian capita in %: '],
         style="background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 10px;",
 
     ))
@@ -310,7 +309,7 @@ stage1map.save('./Data/Stage 1/Output/stage1map.html')
 # Saving Stage 1 key data dataframe as csv
 stage1keydata.to_csv('./Data/Stage 1/Output/stage1keydata.csv')
 
-# STAGE2
+# STAGE 2
 
 # Setting dataframes from imported data
 path = './Data/Stage 2/Input/Popular vote backend - Sheet1.csv'
@@ -322,15 +321,34 @@ dropout = pd.read_csv(path, low_memory=False)
 path = './Data/Stage 2/Input/US states- income QM database.xlsx - Sheet1.csv'
 income = pd.read_csv(path, low_memory=False)
 
+path = './Data/Stage 2/Input/education.csv'
+education = pd.read_csv(path, low_memory=False)
+
+path = './Data/Stage 2/Input/homelessness-by-state.csv'
+homeless = pd.read_csv(path, low_memory=False)
+
+path = './Data/Stage 2/Input/state-unemployment-rate-in-the-us-2020.csv'
+unemployment = pd.read_csv(path, low_memory=False)
+
 # Cleaning dataframes
 dropout = dropout.filter(['State', 'Total'])
+dropout.rename(columns={'Total': 'High school dropout rates'}, inplace=True)
 popularvote = popularvote.filter(['state', 'called', 'dem_this_margin'])
 popularvote['dem_this_margin'] = popularvote['dem_this_margin'].str.rstrip('%').astype('float')
+education = education.filter(['State', 'Bachelor degree or higher'])
 
 # Creating Stage 2 key data dataframe
-stage2keydata = dropout.merge(popularvote, left_on='State', right_on='state', how='inner')
+stage2keydata = stage1keydata.filter(['State', 'Total'])
+stage2keydata = stage2keydata.merge(dropout, left_on='State', right_on='State', how='inner')
+stage2keydata = stage2keydata.merge(popularvote, left_on='State', right_on='state', how='inner')
 stage2keydata = stage2keydata.merge(income, left_on='State', right_on='State', how='inner')
 stage2keydata.drop(['called'], axis=1, inplace=True)
+stage2keydata = stage2keydata.merge(education, left_on='State', right_on='State', how = 'left')
+stage2keydata = stage2keydata.merge(homeless, left_on='State', right_on='State', how = 'left')
+stage2keydata = stage2keydata.merge(unemployment, left_on='State', right_on='State', how = 'left')
+stage2keydata['Bachelor degree or higher (%)'] = (stage2keydata['Bachelor degree or higher'])/(stage2keydata['Total'])*100
+stage2keydata['Overall homeless (%)'] = (stage2keydata['Overall Homeless 2020'])/(stage2keydata['Total'])*100
+stage2keydata.drop(['Bachelor degree or higher', 'Overall Homeless 2020', 'state'], axis=1, inplace=True)
 
 # Creating side-by-side choropleth maps showing datasets
 x_map = map.centroid.x.mean()
@@ -356,7 +374,7 @@ folium.features.Choropleth(
     key_on="feature.properties.State",
     fill_color='RdBu',
     bins=(-50, -25, -15, -10, -5, 0, 5, 10, 15, 25, 90),
-    fill_opacity=0.7,
+    fill_opacity=0.8,
     line_opacity=0.2,
     legend_name='Democratic margin in 2020 Presidential Election',
     smooth_factor=0,
@@ -371,8 +389,8 @@ folium.features.Choropleth(
     columns=['State', 'Median annual income (USD)'],
     key_on="feature.properties.State",
     fill_color='Blues',
-    bins=(24000, 29000, 34000, 39000, 44000, 57000),
-    fill_opacity=0.7,
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage2keydata['Median annual income (USD)'], nb_class=7)),
+    fill_opacity=0.8,
     line_opacity=0.2,
     legend_name='Median Annual Income (USD)',
     smooth_factor=0,
@@ -384,13 +402,61 @@ folium.features.Choropleth(
     geo_data=mapstage2keydata,
     name='High School Dropout Rates (%)',
     data=mapstage2keydata,
-    columns=['State', 'Total'],
+    columns=['State', 'High school dropout rates'],
     key_on="feature.properties.State",
     fill_color='Blues',
-    bins=(3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 9.0),
-    fill_opacity=0.7,
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage2keydata['High school dropout rates'], nb_class=7)),
+    fill_opacity=0.8,
     line_opacity=0.2,
     legend_name='High School Dropout Rates (%)',
+    smooth_factor=0,
+    overlay=True,
+    show=False
+).add_to(stage2map.m2)
+
+folium.features.Choropleth(
+    geo_data=mapstage2keydata,
+    name='Bachelor Degree or Above Attainment (%)',
+    data=mapstage2keydata,
+    columns=['State', 'Bachelor degree or higher (%)'],
+    key_on="feature.properties.State",
+    fill_color='Blues',
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage2keydata['Bachelor degree or higher (%)'], nb_class=7)),
+    fill_opacity=0.8,
+    line_opacity=0.2,
+    legend_name='Bachelor Degree or Above Attainment Rate (%)',
+    smooth_factor=0,
+    overlay=True,
+    show=False
+).add_to(stage2map.m2)
+
+folium.features.Choropleth(
+    geo_data=mapstage2keydata,
+    name='Unemployment Rate (%)',
+    data=mapstage2keydata,
+    columns=['State', 'Unemployment'],
+    key_on="feature.properties.State",
+    fill_color='Blues',
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage2keydata['Unemployment'], nb_class=7)),
+    fill_opacity=0.8,
+    line_opacity=0.2,
+    legend_name='Unemployment Rate (%)',
+    smooth_factor=0,
+    overlay=True,
+    show=False
+).add_to(stage2map.m2)
+
+folium.features.Choropleth(
+    geo_data=mapstage2keydata,
+    name='Homelessness Rate (%)',
+    data=mapstage2keydata,
+    columns=['State', 'Overall homeless (%)'],
+    key_on="feature.properties.State",
+    fill_color='Blues',
+    bins=pd.Series(jenkspy.jenks_breaks(mapstage2keydata['Overall homeless (%)'], nb_class=7)),
+    fill_opacity=0.8,
+    line_opacity=0.2,
+    legend_name='Homelessness Rate (%)',
     smooth_factor=0,
     overlay=True,
     show=False
@@ -405,9 +471,8 @@ interactivemap2 = folium.features.GeoJson(
     show=True,
     highlight_function=highlight_function,
     tooltip=folium.features.GeoJsonTooltip(
-        fields=['State', 'dem_this_margin', 'Median annual income (USD)', 'Total'],
-        aliases=['State: ', 'Democratic margin in 2020 Presidential Election: ', 'Median Annual Income (USD): ',
-                 'High School Dropout Rates (%): '],
+        fields=['State', 'dem_this_margin', 'Median annual income (USD)', 'High school dropout rates', 'Bachelor degree or higher (%)', 'Unemployment', 'Overall homeless (%)'],
+        aliases=['State: ', 'Democratic margin in 2020 Presidential Election: ', 'Median Annual Income (USD): ', 'High School Dropout Rate (%): ', 'Bachelor Degree or Above Attainment Rate(%): ', 'Unemployment Rate (%): ', 'Homelessness Rate (%): '],
         style="background-color: white; color: #333333; font-family: arial; font-size: 12px; padding: 10px;",
 
     ))
@@ -422,16 +487,21 @@ folium.LayerControl(collapsed=False, autoZIndex=False).add_to(stage2map.m2)
 # Exporting stage 2 map
 stage2map.save('./Data/Stage 2/Output/stage2map.html')
 
-# Regression for Income and AAHC rate
+# Setting up dataframe for regression and standardising
 stage2keydata_reg = stage1keydata_reg.filter(['State', 'AAHC rate per Asian capita in %'])
 stage2keydata_reg = stage2keydata_reg.merge(stage2keydata, left_on='State', right_on='State', how='inner')
+
 regression2 = pd.DataFrame()
 regression2['Median annual income (Standardised)'] = (stage2keydata_reg['Median annual income (USD)'] - stage2keydata_reg['Median annual income (USD)'].mean())/(stage2keydata_reg['Median annual income (USD)'].std())
 regression2['dem_this_margin (Standardised)'] = (stage2keydata_reg['dem_this_margin'] - stage2keydata_reg['dem_this_margin'].mean())/(stage2keydata_reg['dem_this_margin'].std())
-regression2['Dropout rates (Standardised)'] = (stage2keydata_reg['Total'] - stage2keydata_reg['Total'].mean())/(stage2keydata_reg['Total'].std())
+regression2['Dropout rates (Standardised)'] = (stage2keydata_reg['High school dropout rates'] - stage2keydata_reg['High school dropout rates'].mean())/(stage2keydata_reg['High school dropout rates'].std())
 regression2['AAHC rate per Asian capita in % (Standardised)'] = (stage1keydata_reg['AAHC rate per Asian capita in %'] - stage1keydata_reg['AAHC rate per Asian capita in %'].mean())/(stage1keydata_reg['AAHC rate per Asian capita in %'].std())
+regression2['Unemployment (Standardised)'] = (stage2keydata_reg['Unemployment'] - stage2keydata_reg['Unemployment'].mean())/(stage2keydata_reg['Unemployment'].std())
+regression2['Bachelor degree or higher (Standardised)'] = (stage2keydata_reg['Bachelor degree or higher (%)'] - stage2keydata_reg['Bachelor degree or higher (%)'].mean())/(stage2keydata_reg['Bachelor degree or higher (%)'].std())
+regression2['Overall homeless (Standardised)'] = (stage2keydata_reg['Overall homeless (%)'] - stage2keydata_reg['Overall homeless (%)'].mean())/(stage2keydata_reg['Overall homeless (%)'].std())
 regression2.to_csv(path_or_buf='./Data/Stage 2/Output/regression2.csv')
 
+# Regression for Income and AAHC rate
 filename = './Data/Stage 2/Output/regression2.csv'
 outputname = './Data/Stage 2/Output/incomeregression.png'
 figure_width, figure_height = 10, 10
@@ -464,9 +534,9 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Median annual income and AAHC rate per Asian capita by US States')
+plt.title('Median annual income and AAHC cases per Asian capita by US States')
 plt.xlabel('Median annual income (Standardised)')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for Dropout rate and AAHC rate
@@ -502,9 +572,9 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('High School Dropout Rates and AAHC rate per Asian capita by US States')
+plt.title('High School Dropout Rates and AAHC cases per Asian capita by US States')
 plt.xlabel('High School Dropout Rates (Standardised)')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Regression for popular vote and AAHC rate
@@ -540,9 +610,123 @@ x_lobf = [min(x_values), max(x_values)]
 y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
 plt.figure(figsize=(figure_width, figure_height))
 plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
-plt.title('Democratic margin in 2020 Presidential Election and AAHC rate per Asian capita by US States')
+plt.title('Democratic margin in 2020 Presidential Election and AAHC cases per Asian capita by US States')
 plt.xlabel('Democratic margin in 2020 Presidential Election (Standardised)')
-plt.ylabel('AAHC rate per Asian capita (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
+plt.savefig(outputname)
+
+# Regression for unemployment and AAHC rate
+filename = './Data/Stage 2/Output/regression2.csv'
+outputname = './Data/Stage 2/Output/unemploymentregression.png'
+figure_width, figure_height = 10, 10
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 5]
+y_values = regressiondata[1:, 4]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and unemployment regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Unemployment rate and AAHC cases per Asian capita by US States')
+plt.xlabel('Unemployment rate (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
+plt.savefig(outputname)
+
+# Regression for Bachelor degree or higher attainment and AAHC rates
+filename = './Data/Stage 2/Output/regression2.csv'
+outputname = './Data/Stage 2/Output/educationregression.png'
+figure_width, figure_height = 10, 10
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 6]
+y_values = regressiondata[1:, 4]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and bachelor or higher attainment regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Bachelor degree or above attainment rate and AAHC cases per Asian capita by US States')
+plt.xlabel('Bachelor degree or above attainment rate (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
+plt.savefig(outputname)
+
+# Regression for homelessness and AAHC rates
+filename = './Data/Stage 2/Output/regression2.csv'
+outputname = './Data/Stage 2/Output/homelessnessregression.png'
+figure_width, figure_height = 10, 10
+regressiondata = np.genfromtxt(filename, delimiter=',')
+x_values = regressiondata[1:, 7]
+y_values = regressiondata[1:, 4]
+regressiondata[np.isnan(regressiondata)] = 0
+regressiondata[np.isinf(regressiondata)] = 0
+
+X_values = sms.add_constant(x_values)
+regression_model_a = sms.OLS(y_values, X_values)
+regression_model_b = regression_model_a.fit()
+print()
+print('AAHC rate and homelessness regression summary')
+print(regression_model_b.summary())
+print()
+
+gradient = regression_model_b.params[1]
+intercept = regression_model_b.params[0]
+Rsquared = regression_model_b.rsquared
+MSE = regression_model_b.mse_resid
+pvalue = regression_model_b.f_pvalue
+print("gradient  =", regression_model_b.params[1])
+print("intercept =", regression_model_b.params[0])
+print("Rsquared  =", regression_model_b.rsquared)
+print("MSE       =", regression_model_b.mse_resid)
+print("pvalue    =", regression_model_b.f_pvalue)
+
+x_lobf = [min(x_values), max(x_values)]
+y_lobf = [x_lobf[0] * gradient + intercept, x_lobf[1] * gradient + intercept]
+plt.figure(figsize=(figure_width, figure_height))
+plt.plot(x_values, y_values, 'b.', x_lobf, y_lobf, 'r--')
+plt.title('Homelessness rate and AAHC cases per Asian capita by US States')
+plt.xlabel('Homelessness rate (Standardised)')
+plt.ylabel('AAHC cases per Asian capita (Standardised)')
 plt.savefig(outputname)
 
 # Saving Stage 2 key data dataframe as csv

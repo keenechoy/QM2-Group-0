@@ -17,6 +17,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/Data/Stage 2/Input/homelessness-by-state.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/Data/Stage 2/Input/state-unemployment-rate-in-the-us-2020.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/Data/Stage 2/Output/regression2.csv">
           <value>
             <Attribute>
