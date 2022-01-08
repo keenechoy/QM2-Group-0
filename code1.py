@@ -731,3 +731,43 @@ plt.savefig(outputname)
 
 # Saving Stage 2 key data dataframe as csv
 stage2keydata.to_csv('./Data/Stage 2/Output/stage2keydata.csv')
+
+# STAGE 3
+
+# Selecting needed data from aahc2020 dataframe and cleaning data
+aahc2020_s3 = aahc2020.filter(['State', 'DIVISION_NAME', 'REGION_NAME', 'LOCATION_NAME'])
+aahc2020_s3.rename(columns={'DIVISION_NAME': 'Division', 'REGION_NAME': 'Region', 'LOCATION_NAME': 'Location'}, inplace=True)
+aahc2020_s3.at[106:109, 'Division'] = 'Pacific'
+aahc2020_s3.at[110, 'Division'] = 'Mountain'
+aahc2020_s3.at[111:112, 'Division'] = 'New England'
+aahc2020_s3.at[113:115, 'Division'] = 'Mountain'
+aahc2020_s3.at[116, 'Division'] = 'West South Central'
+aahc2020_s3.at[117, 'Division'] = 'Pacific'
+aahc2020_s3.at[106:110, 'Region'] = 'West'
+aahc2020_s3.at[111:112, 'Region'] = 'Northeast'
+aahc2020_s3.at[113:115, 'Region'] = 'West'
+aahc2020_s3.at[116, 'Region'] = 'South'
+aahc2020_s3.at[117, 'Region'] = 'West'
+
+# Counting the number of cases in each division
+divisioncount = aahc2020_s3.value_counts(subset='Division').to_frame()
+divisioncount.rename(columns={0: 'Cases'}, inplace=True)
+divisioncount.reset_index(level=0, inplace=True)
+divisioncount['lat']=[41.7, 41.9, 40.9, 43.7, 42.7, 42.1, 33.3, 34.3, 34.9]
+divisioncount['lon']=[-122.5, -76.8, -109.6, -70.9, -96.9, 42.1, -95.4, -80.9, -87.3]
+
+# Creating bubble map showing number of cases in each division
+bmap = folium.Map(location=[45, -105], zoom_start=3, tiles=None)
+folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(bmap)
+
+for i in range(0,len(divisioncount)):
+   folium.CircleMarker(
+      location=[divisioncount.iloc[i]['lat'], divisioncount.iloc[i]['lon']],
+      popup= str(divisioncount.iloc[i]['Division']) + ': ' + str(divisioncount.iloc[i]['Cases']),
+      radius=float(divisioncount.iloc[i]['Cases']),
+      color='#69b3a2',
+      fill=True,
+      fill_color='#69b3a2'
+   ).add_to(bmap)
+
+bmap.save('./Data/Stage 3/Output/bubblemap.html')
