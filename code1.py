@@ -7,6 +7,7 @@ import jenkspy
 import shapely
 import fiona
 import pyproj
+import circlify
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
@@ -763,7 +764,7 @@ folium.TileLayer('CartoDB positron', name="Light Map", control=False).add_to(bma
 for i in range(0,len(divisioncount)):
    folium.CircleMarker(
       location=[divisioncount.iloc[i]['lat'], divisioncount.iloc[i]['lon']],
-      popup= str(divisioncount.iloc[i]['Division']) + ': ' + str(divisioncount.iloc[i]['Cases']),
+      tooltip= str(divisioncount.iloc[i]['Division']) + ': ' + str(divisioncount.iloc[i]['Cases']),
       radius=float(divisioncount.iloc[i]['Cases']),
       color='#69b3a2',
       fill=True,
@@ -771,3 +772,171 @@ for i in range(0,len(divisioncount)):
    ).add_to(bmap)
 
 bmap.save('./Data/Stage 3/Output/bubblemap.html')
+
+# Looking at location data in detail
+locationcount = aahc2020_s3.value_counts(subset='Location').to_frame()
+locationcount.rename(columns={0: 'Cases'}, inplace=True)
+locationcount.reset_index(level=0, inplace=True)
+
+# Categorising location types
+category = {'Location': locationcount['Location']}
+category = pd.DataFrame(category)
+category.at[[0,28], 'Category'] = 'Residential'
+category.at[[6,10,12,17,20,23], 'Category'] = 'Retail'
+category.at[[7,13], 'Category'] = 'Education'
+category.at[[1,3,9,19,24], 'Category'] = 'Transport'
+category.at[[8,15,16,22,25,27,29], 'Category'] = 'Institution'
+category.at[[5,21,26], 'Category'] = 'Natural Area'
+category.at[[4,14,18], 'Category'] = 'Hospitality and Nightlife'
+category.at[[11], 'Category'] = 'Cyberspace'
+category.at[[2,30], 'Category'] = 'Others'
+aahc2020_s3 = aahc2020_s3.merge(category, left_on='Location', right_on='Location', how='left')
+
+# Creating hierarchical data from dataframe for circular packing
+cp = [{'id': 'US', 'cases': len(aahc2020_s3.index), 'children' : [
+              {'id' : "Pacific", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Pacific'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "Mountain", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Mountain'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "West North Central", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West North Central'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "East North Central", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East North Central'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "West South Central", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'West South Central'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "East South Central", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].index),
+               'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'East South Central'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "South Atlantic", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'South Atlantic'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "Mid-Atlantic", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'Middle Atlantic'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]},
+              {'id' : "New England", 'cases': len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].index),
+                   'children' : [
+                     {'id' : "Residential", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Residential'].index)},
+                     {'id' : "Retail", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Retail'].index)},
+                     {'id' : "Education", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Education'].index)},
+                     {'id' : "Transport", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Transport'].index)},
+                     {'id' : "Institution", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Institution'].index)},
+                     {'id' : "Natural Area", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Natural Area'].index)},
+                     {'id' : "Hospitality and Nightlife", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Hospitality and Nightlife'].index)},
+                     {'id' : "Cyberspace", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Cyberspace'].index)},
+                     {'id' : "Others", 'cases' : len(aahc2020_s3.loc[aahc2020_s3['Division'] == 'New England'].loc[aahc2020_s3['Category'] == 'Others'].index)}
+                   ]}
+]}]
+
+# Creating circular packing graph
+fig, ax = plt.subplots(figsize=(20,20))
+ax.set_title('AAHC Cases in each US Divisions by Location Category')
+ax.axis('off')
+
+lim = max(
+    max(
+        abs(circle.x) + circle.r,
+        abs(circle.y) + circle.r,
+    )
+    for circle in circles
+)
+plt.xlim(-lim, lim)
+plt.ylim(-lim, lim)
+
+for circle in circles:
+    if circle.level != 2:
+      continue
+    x, y, r = circle
+    ax.add_patch(plt.Circle((x, y), r, alpha=0.5, linewidth=2, color="lightblue"))
+
+for circle in circles:
+    if circle.level != 3:
+      continue
+    x, y, r = circle
+    label = circle.ex["id"]
+    ax.add_patch(plt.Circle((x, y), r, alpha=0.5, linewidth=2, color="#69b3a2"))
+    plt.annotate(label, (x,y ), ha='center', color="white")
+
+for circle in circles:
+    if circle.level != 2:
+      continue
+    x, y, r = circle
+    label = circle.ex["id"]
+    plt.annotate(label, (x,y ) ,va='center', ha='center', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round', pad=.5))
+    plt.savefig('./Data/Stage 3/Output/circularpacking.png')
