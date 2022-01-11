@@ -10,27 +10,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/Data/Stage 1/Output/aahcrate.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/Data/Stage 1/Output/aahcrateregress.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/Data/Stage 1/Output/asianpop.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/Data/Stage 2/Input/School Dropout data.csv">
           <value>
             <Attribute>
@@ -38,35 +17,21 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/Data/Stage 2/Input/aahc2020.csv">
+        <entry key="/Data/Stage 2/Input/homelessness-by-state.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/Data/Stage 2/Input/aahcrate.csv">
+        <entry key="/Data/Stage 2/Input/state-unemployment-rate-in-the-us-2020.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/Data/Stage 2/Input/interactive.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/Data/Stage 2/Input/mapaahcrate.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/Data/Stage 2/Output/dropoutregress.csv">
+        <entry key="/Data/Stage 2/Output/regression2.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
